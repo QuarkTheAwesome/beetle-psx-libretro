@@ -264,6 +264,8 @@ ifneq ($(HAVE_GRIFFIN), 1)
       ifeq ($(DYNAREC_ARCH), AMD64)
          SOURCES_C   += $(DYNAREC_DIR)/dynarec-amd64.c
          SOURCES_ASM += $(DYNAREC_DIR)/dynarec-amd64-helpers.s
+      else ifeq ($(DYNAREC_ARCH), PPC32)
+         SOURCES_C   += $(DYNAREC_DIR)/dynarec-ppc32.c
       endif
    endif
 endif ## ifneq($(HAVE_GRIFFIN, 1))

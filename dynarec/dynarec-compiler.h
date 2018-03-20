@@ -5,6 +5,8 @@
 
 #ifdef DYNAREC_ARCH_AMD64
 # include "dynarec-amd64.h"
+#elif defined(DYNAREC_ARCH_PPC32)
+# include "dynarec-ppc32.h"
 #endif
 
 enum PSX_REG {
