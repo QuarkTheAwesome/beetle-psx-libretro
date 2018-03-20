@@ -3,6 +3,13 @@
 #include <assert.h>
 
 #include "dynarec-compiler.h"
+#include "dynarec-ppc32-codegen.h"
+
+#define EMIT(instr) { \
+    uint32_t* map = (uint32_t*)(compiler->map); \
+    *map++ = instr; \
+    compiler->map = (uint8_t*)map; \
+}
 
 typedef int8_t ppc_reg_t;
 #define PPC_REG(reg) (ppc_reg_t)reg
@@ -86,4 +93,3 @@ static void prepare_reg(struct dynarec_compiler* compiler,
     printf("dyna: ppc-%d was psx-%d, is now psx-%d\n", \
         best_ppcreg, old_psxreg, psxreg);
 }
-
