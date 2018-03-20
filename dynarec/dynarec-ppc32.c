@@ -93,3 +93,26 @@ static void prepare_reg(struct dynarec_compiler* compiler,
     printf("dyna: ppc-%d was psx-%d, is now psx-%d\n", \
         best_ppcreg, old_psxreg, psxreg);
 }
+
+/****************** Codegen time! ******************/
+
+void dynasm_emit_addi(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_t,
+                             enum PSX_REG reg_s,
+                             uint32_t val) {
+    prepare_reg(reg_t);
+    prepare_reg(reg_s);
+    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
+    ppc_reg_t ppc_source = get_ppc_reg(reg_s);
+    if (reg_t < 0 || reg_s < 0) return;
+
+/*  PowerPC doesn't have an immediate add with overflow.
+
+    li tmpReg, val
+    addo reg_t, reg_s, tmpReg
+    overflow_check */
+
+    EMIT(LI(PPC_TMPREG_1, val));
+    EMIT(ADDI(ppc_target, ppc_source, PPC_TMPREG_1));
+    //TODO overflow check
+}
