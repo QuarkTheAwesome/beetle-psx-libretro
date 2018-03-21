@@ -5,11 +5,21 @@
 #include "dynarec-compiler.h"
 #include "dynarec-ppc32-codegen.h"
 
+#define PPC_DEBUG_INSTR 1
+
+#ifdef MSB_FIRST
 #define EMIT(instr) { \
    uint32_t* map = (uint32_t*)(compiler->map); \
    *map++ = instr; \
    compiler->map = (uint8_t*)map; \
 }
+#else //!MSB_FIRST
+#define EMIT(instr) { \
+   uint32_t* map = (uint32_t*)(compiler->map); \
+   *map++ = __builtin_bswap32(instr); \
+   compiler->map = (uint8_t*)map; \
+}
+#endif
 
 typedef int8_t ppc_reg_t;
 #define PPC_REG(reg) (ppc_reg_t)reg
@@ -108,6 +118,10 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_t,
                       enum PSX_REG reg_s,
                       uint32_t val) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing addi %d, %d, %04X\n", reg_t, reg_s, val);
+#endif
+
    prepare_reg(compiler, reg_t);
    prepare_reg(compiler, reg_s);
    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
@@ -132,6 +146,10 @@ void dynasm_emit_addiu(struct dynarec_compiler *compiler,
                        enum PSX_REG reg_t,
                        enum PSX_REG reg_s,
                        uint32_t val) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing addiu %d, %d, %04X\n", reg_t, reg_s, val);
+#endif
+
    prepare_reg(compiler, reg_t);
    prepare_reg(compiler, reg_s);
    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
@@ -149,6 +167,10 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
                        enum PSX_REG reg_t,
                        enum PSX_REG reg_s,
                        uint32_t val) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing sltiu %d, %d, %04X\n", reg_t, reg_s, val);
+#endif
+
    prepare_reg(compiler, reg_t);
    prepare_reg(compiler, reg_s);
    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
