@@ -96,15 +96,23 @@ static void prepare_reg(struct dynarec_compiler* compiler,
 
 /****************** Codegen time! ******************/
 
+#define PPC_OVERFLOW_CHECK() { \
+    /*TODO*/ \
+}
+
+#define PPC_UNIMPLEMENTED() { \
+    printf("dyna: " __FUNCTION__ " not implemented\n"); \
+}
+
 void dynasm_emit_addi(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_t,
-                             enum PSX_REG reg_s,
-                             uint32_t val) {
+                      enum PSX_REG reg_t,
+                      enum PSX_REG reg_s,
+                      uint32_t val) {
     prepare_reg(reg_t);
     prepare_reg(reg_s);
     ppc_reg_t ppc_target = get_ppc_reg(reg_t);
     ppc_reg_t ppc_source = get_ppc_reg(reg_s);
-    if (reg_t < 0 || reg_s < 0) return;
+    if (ppc_target < 0 || ppc_source < 0) return;
 
 /*  PowerPC doesn't have an immediate add with overflow.
 
@@ -113,6 +121,54 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
     overflow_check */
 
     EMIT(LI(PPC_TMPREG_1, val));
-    EMIT(ADDI(ppc_target, ppc_source, PPC_TMPREG_1));
-    //TODO overflow check
+    EMIT(ADDO_(ppc_target, ppc_source, PPC_TMPREG_1));
+    PPC_OVERFLOW_CHECK();
+
+    UPDATE_LAST_USE(compiler, ppc_target);
+    UPDATE_LAST_USE(compiler, ppc_source);
+}
+
+void dynasm_emit_addiu(struct dynarec_compiler *compiler,
+                       enum PSX_REG reg_t,
+                       enum PSX_REG reg_s,
+                       uint32_t val) {
+    prepare_reg(ret_t);
+    prepare_reg(reg_s);
+    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
+    ppc_reg_t ppc_source = get_ppc_reg(reg_s);
+    if (ppc_target < 0 || ppc_source < 0) return;
+
+/*  MIPS' addiu matches perfectly with PowerPC's addi! Woo! */
+    EMIT(ADDI(ppc_target, ppc_source, val));
+
+    UPDATE_LAST_USE(compiler, ppc_target);
+    UPDATE_LAST_USE(compiler, ppc_source);
+}
+
+void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
+                       enum PSX_REG reg_t,
+                       enum PSX_REG reg_s,
+                       uint32_t val) {
+    prepare_reg(ret_t);
+    prepare_reg(reg_s);
+    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
+    ppc_reg_t ppc_source = get_ppc_reg(reg_s);
+    if (ppc_target < 0 || ppc_source < 0) return;
+
+/*  This one is annoying because of its boolean result...
+
+    li reg_t, 1 ;set target to true
+    li tmpReg, val ;sign-extend val, cmpli doesn't sign-extend
+    cmpl reg_s, tmpReg
+    blt 8 ;if less than, skip next instruction
+    li reg_t, 0 ;it's not less than, set target to false */
+
+    EMIT(LI(ppc_target, 1));
+    EMIT(LI(PPC_TMPREG_1, val));
+    EMIT(CMPL(ppc_source, PPC_TMPREG_1));
+    EMIT(BLT(8));
+    EMIT(LI(ppc_target, 0));
+
+    UPDATE_LAST_USE(compiler, ppc_target);
+    UPDATE_LAST_USE(compiler, ppc_source);
 }
