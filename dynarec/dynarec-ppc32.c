@@ -101,15 +101,15 @@ static void prepare_reg(struct dynarec_compiler* compiler,
 }
 
 #define PPC_UNIMPLEMENTED() { \
-   printf("dyna: " __FUNCTION__ " not implemented\n"); \
+   printf("dyna: %s not implemented\n", __PRETTY_FUNCTION__); \
 }
 
 void dynasm_emit_addi(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_t,
                       enum PSX_REG reg_s,
                       uint32_t val) {
-   prepare_reg(reg_t);
-   prepare_reg(reg_s);
+   prepare_reg(compiler, reg_t);
+   prepare_reg(compiler, reg_s);
    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
    ppc_reg_t ppc_source = get_ppc_reg(reg_s);
    if (ppc_target < 0 || ppc_source < 0) return;
@@ -132,8 +132,8 @@ void dynasm_emit_addiu(struct dynarec_compiler *compiler,
                        enum PSX_REG reg_t,
                        enum PSX_REG reg_s,
                        uint32_t val) {
-   prepare_reg(ret_t);
-   prepare_reg(reg_s);
+   prepare_reg(compiler, reg_t);
+   prepare_reg(compiler, reg_s);
    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
    ppc_reg_t ppc_source = get_ppc_reg(reg_s);
    if (ppc_target < 0 || ppc_source < 0) return;
@@ -149,8 +149,8 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
                        enum PSX_REG reg_t,
                        enum PSX_REG reg_s,
                        uint32_t val) {
-   prepare_reg(ret_t);
-   prepare_reg(reg_s);
+   prepare_reg(compiler, reg_t);
+   prepare_reg(compiler, reg_s);
    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
    ppc_reg_t ppc_source = get_ppc_reg(reg_s);
    if (ppc_target < 0 || ppc_source < 0) return;
@@ -176,5 +176,105 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
 /*  TODO: ask what this is supposed to do */
 void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
                                 unsigned cycles) {
+   PPC_UNIMPLEMENTED();
+}
+
+int32_t dynasm_execute(struct dynarec_state *state,
+                              dynarec_fn_t target,
+                              int32_t counter) {
+   PPC_UNIMPLEMENTED();
+   return 0;
+}
+void dynasm_emit_exception(struct dynarec_compiler *compiler,
+                                  enum PSX_CPU_EXCEPTION exception) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_li(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg,
+                           uint32_t val) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_mov(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_source) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_sll(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op,
+                            uint8_t shift) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_sra(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_target,
+                            enum PSX_REG reg_op,
+                            uint8_t shift) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_addu(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_target,
+                             enum PSX_REG reg_op0,
+                             enum PSX_REG reg_op1) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_or(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_target,
+                           enum PSX_REG reg_op0,
+                           enum PSX_REG reg_op1) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_ori(struct dynarec_compiler *compiler,
+                            enum PSX_REG reg_t,
+                            enum PSX_REG reg_s,
+                            uint32_t val) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_andi(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_t,
+                             enum PSX_REG reg_s,
+                             uint32_t val) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_sltu(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_target,
+                             enum PSX_REG reg_op0,
+                             enum PSX_REG reg_op1) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_sw(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_addr,
+                           int16_t offset,
+                           enum PSX_REG reg_val) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_sh(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_addr,
+                           int16_t offset,
+                           enum PSX_REG reg_val) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_lw(struct dynarec_compiler *compiler,
+                           enum PSX_REG reg_target,
+                           int16_t offset,
+                           enum PSX_REG reg_addr) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
+                                        int32_t offset,
+                                        bool placeholder) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_target) {
+   PPC_UNIMPLEMENTED();
+}
+void dynasm_emit_mtlo(struct dynarec_compiler *compiler,
+                             enum PSX_REG ret_source) {
+   PPC_UNIMPLEMENTED();
+}
+
+void dynasm_emit_mtc0(struct dynarec_compiler *compiler,
+                             enum PSX_REG reg_source,
+                             enum PSX_COP0_REG reg_cop0) {
    PPC_UNIMPLEMENTED();
 }
