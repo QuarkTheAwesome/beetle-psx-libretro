@@ -6,26 +6,26 @@
 #include "dynarec-ppc32-codegen.h"
 
 #define EMIT(instr) { \
-    uint32_t* map = (uint32_t*)(compiler->map); \
-    *map++ = instr; \
-    compiler->map = (uint8_t*)map; \
+   uint32_t* map = (uint32_t*)(compiler->map); \
+   *map++ = instr; \
+   compiler->map = (uint8_t*)map; \
 }
 
 typedef int8_t ppc_reg_t;
 #define PPC_REG(reg) (ppc_reg_t)reg
 #define PPC_REG_INVALID PPC_REG(-1)
 #define PPC_REG_VALID(reg) ((reg != PPC_REG_INVALID)\
-                            && (reg >= PPC_REG_FIRST)\
-                            && (reg <= PPC_REG_LAST))
+                     && (reg >= PPC_REG_FIRST)\
+                     && (reg <= PPC_REG_LAST))
 
-/*  REG  |V?|
-    r0   |y | dynarec cycle count
-    r1   |n | stack pointer
-    r2   |y | dynarec_state
-    r3   |y | Intermediary/Temp
-    r4   |y | Intermediary/Temp
-    5-14 |y | PSX regs (dynamically allocated)
-    15-31|n | PSX regs (dynamically allocated)
+/* REG  |volatile?|usage
+   r0   |y | dynarec cycle count
+   r1   |n | stack pointer
+   r2   |y | dynarec_state
+   r3   |y | Intermediary/Temp
+   r4   |y | Intermediary/Temp
+   5-14 |y | PSX regs (dynamically allocated)
+   15-31|n | PSX regs (dynamically allocated)
 */
 #define PPC_REG_FIRST PPC_REG(5)
 #define PPC_REG_LAST  PPC_REG(31)
@@ -33,142 +33,148 @@ typedef int8_t ppc_reg_t;
 #define PPC_TMPREG_2 PPC_REG(4)
 #define PPC_DYNASTATEREG PPC_REG(2)
 
-/*  Mappings of psx regs to ppc regs.
-    Use PSX_REG to index. */
+/* Mappings of psx regs to ppc regs.
+   Use PSX_REG to index. */
 ppc_reg_t ppc_reg_map[/*PSX_REG*/32] = { PPC_REG_INVALID };
-/*  Last PC value where a given PowerPC reg was used.
-    Use ppc_reg_t to index.
-    TODO: come up with a better optimisation? this could fall over in loops. */
+/* Last PC value where a given PowerPC reg was used.
+   Use ppc_reg_t to index.
+   TODO: come up with a better optimisation? this could fall over in loops. */
 uint32_t ppc_reg_lastuse[/*ppc_reg_t*/32] = { 0 };
 #define UPDATE_LAST_USE(compiler, reg) ppc_reg_lastuse[reg] = compiler->pc
 
 static ppc_reg_t get_ppc_reg(enum PSX_REG psxreg) {
-    if (psxreg < 32)
-        return ppc_reg_map[psxreg];
-    
-    return PPC_REG_INVALID;
+   if (psxreg < 32)
+      return ppc_reg_map[psxreg];
+
+   return PPC_REG_INVALID;
 }
 
 static void prepare_reg(struct dynarec_compiler* compiler,
                         enum PSX_REG psxreg) {
-    if (PPC_REG_VALID(ppc_reg_map[psxreg])) return;
+   if (PPC_REG_VALID(ppc_reg_map[psxreg])) return;
 
-/*  We need to assign this PSX reg a PowerPC reg!
-    Try to find the PowerPC reg that has been left unused for the longest */
-    ppc_reg_t best_ppcreg = PPC_REG_FIRST;
-    uint32_t best_ppcreg_lastuse = ppc_reg_lastuse[best_ppcreg];
+/* We need to assign this PSX reg a PowerPC reg!
+   Try to find the PowerPC reg that has been left unused for the longest */
+   ppc_reg_t best_ppcreg = PPC_REG_FIRST;
+   uint32_t best_ppcreg_lastuse = ppc_reg_lastuse[best_ppcreg];
 
-    for (ppc_reg_t ppcreg = PPC_REG_FIRST; ppcreg <= PPC_REG_LAST; ppcreg++) {
-        if (ppc_reg_lastuse[ppcreg] < best_ppcreg_lastuse) {
-        /*  We have a new best reg! */
-            best_ppcreg = ppcreg;
-            best_ppcreg_lastuse = ppc_reg_lastuse[best_ppcreg];
-        }
-    }
+   for (ppc_reg_t ppcreg = PPC_REG_FIRST; ppcreg <= PPC_REG_LAST; ppcreg++) {
+      if (ppc_reg_lastuse[ppcreg] < best_ppcreg_lastuse) {
+      /* We have a new best reg! */
+         best_ppcreg = ppcreg;
+         best_ppcreg_lastuse = ppc_reg_lastuse[best_ppcreg];
+      }
+   }
 
-/*  Find out what PSX reg this corresponds to */
-    int old_psxreg = -1;
-    for (int i = 0; i < 32; i++) {
-        if (ppc_reg_map[i] == best_ppcreg) {
-            old_psxreg = i;
-            break;
-        }
-    }
+/* Find out what PSX reg this corresponds to */
+   int old_psxreg = -1;
+   for (int i = 0; i < 32; i++) {
+      if (ppc_reg_map[i] == best_ppcreg) {
+         old_psxreg = i;
+         break;
+      }
+   }
 
-/*  We've picked a register, woo! 
-    First, save its old value to dynarec_state. */
-    if (old_psxreg >= 0) {
-        EMIT(STW(best_ppcreg, \
-            DYNAREC_STATE_REG_OFFSET(old_psxreg), PPC_DYNASTATEREG));
-    }
+/* We've picked a register, woo!
+   First, save its old value to dynarec_state. */
+   if (old_psxreg >= 0) {
+      EMIT(STW(best_ppcreg, \
+         DYNAREC_STATE_REG_OFFSET(old_psxreg), PPC_DYNASTATEREG));
+   }
 
-/*  Now, load in the new psxreg value. */
-    EMIT(LWZ(best_ppcreg, \
-        DYNAREC_STATE_REG_OFFSET(psxreg), PPC_DYNASTATEREG));
+/* Now, load in the new psxreg value. */
+   EMIT(LWZ(best_ppcreg, \
+      DYNAREC_STATE_REG_OFFSET(psxreg), PPC_DYNASTATEREG));
 
-/*  Update tracking bits. */
-    ppc_reg_map[old_psxreg] = PPC_REG_INVALID;
-    ppc_reg_map[psxreg] = best_ppcreg;
-    UPDATE_LAST_USE(compiler, best_ppcreg);
-    printf("dyna: ppc-%d was psx-%d, is now psx-%d\n", \
-        best_ppcreg, old_psxreg, psxreg);
+/* Update tracking bits. */
+   ppc_reg_map[old_psxreg] = PPC_REG_INVALID;
+   ppc_reg_map[psxreg] = best_ppcreg;
+   UPDATE_LAST_USE(compiler, best_ppcreg);
+   printf("dyna: ppc-%d was psx-%d, is now psx-%d\n", \
+      best_ppcreg, old_psxreg, psxreg);
 }
 
 /****************** Codegen time! ******************/
 
 #define PPC_OVERFLOW_CHECK() { \
-    /*TODO*/ \
+   /*TODO*/ \
 }
 
 #define PPC_UNIMPLEMENTED() { \
-    printf("dyna: " __FUNCTION__ " not implemented\n"); \
+   printf("dyna: " __FUNCTION__ " not implemented\n"); \
 }
 
 void dynasm_emit_addi(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_t,
                       enum PSX_REG reg_s,
                       uint32_t val) {
-    prepare_reg(reg_t);
-    prepare_reg(reg_s);
-    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
-    ppc_reg_t ppc_source = get_ppc_reg(reg_s);
-    if (ppc_target < 0 || ppc_source < 0) return;
+   prepare_reg(reg_t);
+   prepare_reg(reg_s);
+   ppc_reg_t ppc_target = get_ppc_reg(reg_t);
+   ppc_reg_t ppc_source = get_ppc_reg(reg_s);
+   if (ppc_target < 0 || ppc_source < 0) return;
 
-/*  PowerPC doesn't have an immediate add with overflow.
+/* PowerPC doesn't have an immediate add with overflow.
 
-    li tmpReg, val
-    addo reg_t, reg_s, tmpReg
-    overflow_check */
+   li tmpReg, val
+   addo reg_t, reg_s, tmpReg
+   overflow_check */
 
-    EMIT(LI(PPC_TMPREG_1, val));
-    EMIT(ADDO_(ppc_target, ppc_source, PPC_TMPREG_1));
-    PPC_OVERFLOW_CHECK();
+   EMIT(LI(PPC_TMPREG_1, val));
+   EMIT(ADDO_(ppc_target, ppc_source, PPC_TMPREG_1));
+   PPC_OVERFLOW_CHECK();
 
-    UPDATE_LAST_USE(compiler, ppc_target);
-    UPDATE_LAST_USE(compiler, ppc_source);
+   UPDATE_LAST_USE(compiler, ppc_target);
+   UPDATE_LAST_USE(compiler, ppc_source);
 }
 
 void dynasm_emit_addiu(struct dynarec_compiler *compiler,
                        enum PSX_REG reg_t,
                        enum PSX_REG reg_s,
                        uint32_t val) {
-    prepare_reg(ret_t);
-    prepare_reg(reg_s);
-    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
-    ppc_reg_t ppc_source = get_ppc_reg(reg_s);
-    if (ppc_target < 0 || ppc_source < 0) return;
+   prepare_reg(ret_t);
+   prepare_reg(reg_s);
+   ppc_reg_t ppc_target = get_ppc_reg(reg_t);
+   ppc_reg_t ppc_source = get_ppc_reg(reg_s);
+   if (ppc_target < 0 || ppc_source < 0) return;
 
-/*  MIPS' addiu matches perfectly with PowerPC's addi! Woo! */
-    EMIT(ADDI(ppc_target, ppc_source, val));
+/* MIPS' addiu matches perfectly with PowerPC's addi! Woo! */
+   EMIT(ADDI(ppc_target, ppc_source, val));
 
-    UPDATE_LAST_USE(compiler, ppc_target);
-    UPDATE_LAST_USE(compiler, ppc_source);
+   UPDATE_LAST_USE(compiler, ppc_target);
+   UPDATE_LAST_USE(compiler, ppc_source);
 }
 
 void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
                        enum PSX_REG reg_t,
                        enum PSX_REG reg_s,
                        uint32_t val) {
-    prepare_reg(ret_t);
-    prepare_reg(reg_s);
-    ppc_reg_t ppc_target = get_ppc_reg(reg_t);
-    ppc_reg_t ppc_source = get_ppc_reg(reg_s);
-    if (ppc_target < 0 || ppc_source < 0) return;
+   prepare_reg(ret_t);
+   prepare_reg(reg_s);
+   ppc_reg_t ppc_target = get_ppc_reg(reg_t);
+   ppc_reg_t ppc_source = get_ppc_reg(reg_s);
+   if (ppc_target < 0 || ppc_source < 0) return;
 
-/*  This one is annoying because of its boolean result...
+/* This one is annoying because of its boolean result...
 
-    li reg_t, 1 ;set target to true
-    li tmpReg, val ;sign-extend val, cmpli doesn't sign-extend
-    cmpl reg_s, tmpReg
-    blt 8 ;if less than, skip next instruction
-    li reg_t, 0 ;it's not less than, set target to false */
+   li reg_t, 1 ;set target to true
+   li tmpReg, val ;sign-extend val, cmpli doesn't sign-extend
+   cmpl reg_s, tmpReg
+   blt 8 ;if less than, skip next instruction
+   li reg_t, 0 ;it's not less than, set target to false */
 
-    EMIT(LI(ppc_target, 1));
-    EMIT(LI(PPC_TMPREG_1, val));
-    EMIT(CMPL(ppc_source, PPC_TMPREG_1));
-    EMIT(BLT(8));
-    EMIT(LI(ppc_target, 0));
+   EMIT(LI(ppc_target, 1));
+   EMIT(LI(PPC_TMPREG_1, val));
+   EMIT(CMPL(ppc_source, PPC_TMPREG_1));
+   EMIT(BLT(8));
+   EMIT(LI(ppc_target, 0));
 
-    UPDATE_LAST_USE(compiler, ppc_target);
-    UPDATE_LAST_USE(compiler, ppc_source);
+   UPDATE_LAST_USE(compiler, ppc_target);
+   UPDATE_LAST_USE(compiler, ppc_source);
+}
+
+/*  TODO: ask what this is supposed to do */
+void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
+                                unsigned cycles) {
+   PPC_UNIMPLEMENTED();
 }
