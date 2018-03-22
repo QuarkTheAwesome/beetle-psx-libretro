@@ -215,10 +215,13 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
 void dynasm_emit_li(struct dynarec_compiler *compiler,
                     enum PSX_REG reg,
                     uint32_t val) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing li %d, %04X\n", reg, val);
+#endif
    prepare_reg(compiler, reg);
    ppc_reg_t ppc_target = get_ppc_reg(reg);
    if (ppc_target < 0) return;
-   UPDATE_LAST_USE(ppc_target);
+   UPDATE_LAST_USE(compiler, ppc_target);
 
 /* TODO: this looks like a pseudo-instruction.
    Ask if it should be sign-extended. */

@@ -68,4 +68,8 @@
 #define BLT(bd) (uint32_t) \
    BC(12, 0, bd)
 
+/* ori rA, rS, imm */
+#define ORI(rA, rS, imm) (uint32_t) \
+   PPCG_IMM16(24, rS, rA, imm) /* yes, really */
+
 #endif
