@@ -204,9 +204,16 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
    EMIT(LI(ppc_target, 0));
 }
 void dynasm_emit_li(struct dynarec_compiler *compiler,
-                           enum PSX_REG reg,
-                           uint32_t val) {
-   PPC_UNIMPLEMENTED();
+                    enum PSX_REG reg,
+                    uint32_t val) {
+   prepare_reg(compiler, reg);
+   ppc_reg_t ppc_target = get_ppc_reg(reg);
+   if (ppc_target < 0) return;
+   UPDATE_LAST_USE(ppc_target);
+
+/* TODO: this looks like a pseudo-instruction.
+   Ask if it should be sign-extended. */
+   EMIT(LI(ppc_target, val));
 }
 void dynasm_emit_mov(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
@@ -238,10 +245,13 @@ void dynasm_emit_or(struct dynarec_compiler *compiler,
    PPC_UNIMPLEMENTED();
 }
 void dynasm_emit_ori(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_t,
-                            enum PSX_REG reg_s,
-                            uint32_t val) {
-   PPC_UNIMPLEMENTED();
+                     enum PSX_REG reg_t,
+                     enum PSX_REG reg_s,
+                     uint32_t val) {
+   BOILERPLATE_TARGET_SRC
+
+/* Perfect match! */
+   EMIT(ORI(ppc_target, ppc_source, val));
 }
 void dynasm_emit_andi(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_t,
