@@ -72,4 +72,18 @@
 #define ORI(rA, rS, imm) (uint32_t) \
    PPCG_IMM16(24, rS, rA, imm) /* yes, really */
 
+/* base for or, or. Can we get away with ADD here?
+   It's technically a different format... */
+#define ORx(rA, rS, rB, rc) (uint32_t) \
+   PPCG_ADD(31, rS, rA, rB, 0, 444, rc)
+
+/* or rA, rS, rB */
+#define OR(rA, rS, rB) (uint32_t) \
+   ORx(rA, rS, rB, 0)
+
+/* mr rA, rS
+   this is the preferred method accoring to the UISA */
+#define MR(rA, rS) (uint32_t) \
+   OR(rA, rS, rS)
+
 #endif

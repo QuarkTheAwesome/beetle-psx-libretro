@@ -228,9 +228,14 @@ void dynasm_emit_li(struct dynarec_compiler *compiler,
    EMIT(LI(ppc_target, val));
 }
 void dynasm_emit_mov(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_target,
-                            enum PSX_REG reg_source) {
-   PPC_UNIMPLEMENTED();
+                            enum PSX_REG reg_t,
+                            enum PSX_REG reg_s) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing mov %d, %d\n", reg_t, reg_s);
+#endif
+   BOILERPLATE_TARGET_SRC
+
+   EMIT(MR(ppc_target, ppc_source));
 }
 void dynasm_emit_sll(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_target,
