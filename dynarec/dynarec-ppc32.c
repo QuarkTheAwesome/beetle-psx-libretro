@@ -114,6 +114,15 @@ static void prepare_reg(struct dynarec_compiler* compiler,
    printf("dyna: %s not implemented\n", __PRETTY_FUNCTION__); \
 }
 
+#define BOILERPLATE_TARGET_SRC \
+   prepare_reg(compiler, reg_t); \
+   prepare_reg(compiler, reg_s); \
+   ppc_reg_t ppc_target = get_ppc_reg(reg_t); \
+   ppc_reg_t ppc_source = get_ppc_reg(reg_s); \
+   if (ppc_target < 0 || ppc_source < 0) return; \
+   UPDATE_LAST_USE(compiler, ppc_target); \
+   UPDATE_LAST_USE(compiler, ppc_source);
+
 /*  TODO: ask what this is supposed to do */
 void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
                                 unsigned cycles) {
@@ -145,12 +154,7 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing addi %d, %d, %04X\n", reg_t, reg_s, val);
 #endif
-
-   prepare_reg(compiler, reg_t);
-   prepare_reg(compiler, reg_s);
-   ppc_reg_t ppc_target = get_ppc_reg(reg_t);
-   ppc_reg_t ppc_source = get_ppc_reg(reg_s);
-   if (ppc_target < 0 || ppc_source < 0) return;
+   BOILERPLATE_TARGET_SRC
 
 /* PowerPC doesn't have an immediate add with overflow.
 
@@ -161,9 +165,6 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
    EMIT(LI(PPC_TMPREG_1, val));
    EMIT(ADDO_(ppc_target, ppc_source, PPC_TMPREG_1));
    PPC_OVERFLOW_CHECK();
-
-   UPDATE_LAST_USE(compiler, ppc_target);
-   UPDATE_LAST_USE(compiler, ppc_source);
 }
 
 void dynasm_emit_addiu(struct dynarec_compiler *compiler,
@@ -173,18 +174,10 @@ void dynasm_emit_addiu(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing addiu %d, %d, %04X\n", reg_t, reg_s, val);
 #endif
-
-   prepare_reg(compiler, reg_t);
-   prepare_reg(compiler, reg_s);
-   ppc_reg_t ppc_target = get_ppc_reg(reg_t);
-   ppc_reg_t ppc_source = get_ppc_reg(reg_s);
-   if (ppc_target < 0 || ppc_source < 0) return;
+   BOILERPLATE_TARGET_SRC
 
 /* MIPS' addiu matches perfectly with PowerPC's addi! Woo! */
    EMIT(ADDI(ppc_target, ppc_source, val));
-
-   UPDATE_LAST_USE(compiler, ppc_target);
-   UPDATE_LAST_USE(compiler, ppc_source);
 }
 
 void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
@@ -194,12 +187,7 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing sltiu %d, %d, %04X\n", reg_t, reg_s, val);
 #endif
-
-   prepare_reg(compiler, reg_t);
-   prepare_reg(compiler, reg_s);
-   ppc_reg_t ppc_target = get_ppc_reg(reg_t);
-   ppc_reg_t ppc_source = get_ppc_reg(reg_s);
-   if (ppc_target < 0 || ppc_source < 0) return;
+   BOILERPLATE_TARGET_SRC
 
 /* This one is annoying because of its boolean result...
 
@@ -214,9 +202,6 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
    EMIT(CMPL(ppc_source, PPC_TMPREG_1));
    EMIT(BLT(8));
    EMIT(LI(ppc_target, 0));
-
-   UPDATE_LAST_USE(compiler, ppc_target);
-   UPDATE_LAST_USE(compiler, ppc_source);
 }
 void dynasm_emit_li(struct dynarec_compiler *compiler,
                            enum PSX_REG reg,
