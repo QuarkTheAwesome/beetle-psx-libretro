@@ -114,6 +114,30 @@ static void prepare_reg(struct dynarec_compiler* compiler,
    printf("dyna: %s not implemented\n", __PRETTY_FUNCTION__); \
 }
 
+/*  TODO: ask what this is supposed to do */
+void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
+                                unsigned cycles) {
+   PPC_UNIMPLEMENTED();
+}
+
+int32_t dynasm_execute(struct dynarec_state *state,
+                       dynarec_fn_t target,
+                       int32_t counter) {
+   PPC_UNIMPLEMENTED();
+   return 0;
+}
+
+void dynasm_emit_exception(struct dynarec_compiler *compiler,
+                           enum PSX_CPU_EXCEPTION exception) {
+   PPC_UNIMPLEMENTED();
+}
+
+void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
+                                 int32_t offset,
+                                 bool placeholder) {
+   PPC_UNIMPLEMENTED();
+}
+
 void dynasm_emit_addi(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_t,
                       enum PSX_REG reg_s,
@@ -194,23 +218,6 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
    UPDATE_LAST_USE(compiler, ppc_target);
    UPDATE_LAST_USE(compiler, ppc_source);
 }
-
-/*  TODO: ask what this is supposed to do */
-void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
-                                unsigned cycles) {
-   PPC_UNIMPLEMENTED();
-}
-
-int32_t dynasm_execute(struct dynarec_state *state,
-                              dynarec_fn_t target,
-                              int32_t counter) {
-   PPC_UNIMPLEMENTED();
-   return 0;
-}
-void dynasm_emit_exception(struct dynarec_compiler *compiler,
-                                  enum PSX_CPU_EXCEPTION exception) {
-   PPC_UNIMPLEMENTED();
-}
 void dynasm_emit_li(struct dynarec_compiler *compiler,
                            enum PSX_REG reg,
                            uint32_t val) {
@@ -281,11 +288,7 @@ void dynasm_emit_lw(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_addr) {
    PPC_UNIMPLEMENTED();
 }
-void dynasm_emit_page_local_jump(struct dynarec_compiler *compiler,
-                                        int32_t offset,
-                                        bool placeholder) {
-   PPC_UNIMPLEMENTED();
-}
+
 void dynasm_emit_mfhi(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target) {
    PPC_UNIMPLEMENTED();
