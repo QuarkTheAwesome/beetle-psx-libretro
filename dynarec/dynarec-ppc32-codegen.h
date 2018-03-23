@@ -40,9 +40,17 @@
 #define ADDI(rD, rA, imm) (uint32_t) \
    PPCG_IMM16(14, rD, rA, imm)
 
+/* addis rD, rA, imm */
+#define ADDIS(rD, rA, imm) (uint32_t) \
+   PPCG_IMM16(15, rD, rA, imm)
+
 /* li rD, imm */
 #define LI(rD, imm) (uint32_t) \
    ADDI(rD, 0, imm)
+
+/* lis rD, imm */
+#define LIS(rD, imm) (uint32_t) \
+   ADDIS(rD, 0, imm)
 
 /* base for add, add., addo, addo. */
 #define ADDx(rD, rA, rB, oe, rc) (uint32_t) \

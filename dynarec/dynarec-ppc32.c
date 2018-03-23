@@ -224,8 +224,19 @@ void dynasm_emit_li(struct dynarec_compiler *compiler,
    UPDATE_LAST_USE(compiler, ppc_target);
 
 /* TODO: this looks like a pseudo-instruction.
-   Ask if it should be sign-extended. */
-   EMIT(LI(ppc_target, val));
+   Ask if it should be sign-extended.
+
+   Conditionally emit lis/addi, li or lis as needed */
+   if (val & 0xFFFF) {
+      if (val & 0xFFFF0000) {
+         EMIT(LIS(ppc_target, val >> 16));
+         EMIT(ADDI(ppc_target, ppc_target, val));
+      } else { //val & 0xFFFF
+         EMIT(LI(ppc_target, val));
+      }
+   } else { //val & 0xFFFF == 0
+      EMIT(LIS(ppc_target, val >> 16));
+   }
 }
 void dynasm_emit_mov(struct dynarec_compiler *compiler,
                             enum PSX_REG reg_t,
@@ -265,6 +276,9 @@ void dynasm_emit_ori(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
                      enum PSX_REG reg_s,
                      uint32_t val) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing ori %d, %d, %04X\n", reg_t, reg_s, val);
+#endif
    BOILERPLATE_TARGET_SRC
 
 /* Perfect match! */
