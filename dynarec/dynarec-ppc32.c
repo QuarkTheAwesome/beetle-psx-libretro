@@ -3,6 +3,9 @@
    750CL: https://fail0verflow.com/media/files/ppc_750cl.pdf
    PEM (referenced by 750CL manual): https://preview.tinyurl.com/ycws6xx9
 
+   If you modify any instruction sequences, make sure to check dynarec-ppc32.h
+   and update the maximum length if needed.
+
    Originally by Ash Logan <quarktheawesome@gmail.com>
    For licensing, see the LICENSE or COPYING file included with this repository.
 */

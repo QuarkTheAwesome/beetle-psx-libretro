@@ -10,7 +10,12 @@
 #ifndef __DYNAREC_PPC32_H__
 #define __DYNAREC_PPC32_H__
 
-/* Maximum length of a recompiled instruction in bytes. */
-#define DYNAREC_INSTRUCTION_MAX_LEN  (6 * 4)
+/* Maximum length of a recompiled instruction in bytes.
+   Worst cases:
+      - sltiu: 5 instructions, + possible 4 regsaves/loads = 9 instructions
+      - addi: 2 instructions + overflow + possible 4 regloads = 6+ instructions
+      - seriously sltiu is the awful one here
+   10 is a safe bet for now? Will have to update as time goes on. */
+#define DYNAREC_INSTRUCTION_MAX_LEN  (10 * 4)
 
 #endif //__DYNAREC_PPC32_H__
