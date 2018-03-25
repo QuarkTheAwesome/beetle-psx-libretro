@@ -105,4 +105,12 @@
 #define RLWINM(rA, rS, sh, mb, me) (uint32_t) \
    RLWINMx(rA, rS, sh, mb, me, 0)
 
+/* base for srawi, srawi.
+   Same deal with OR, we're using a format we really shouldn't */
+#define SRAWIx(rA, rS, SH, rc) (uint32_t) \
+   PPCG_ADD(31, rA, rS, SH, 0, 284, rc)
+
+#define SRAWI(rA, rS, SH) (uint32_t) \
+   SRAWIx(rA, rS, SH, 0)
+
 #endif

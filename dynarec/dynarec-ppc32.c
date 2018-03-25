@@ -252,16 +252,26 @@ void dynasm_emit_mov(struct dynarec_compiler *compiler,
    EMIT(MR(ppc_target, ppc_source));
 }
 void dynasm_emit_sll(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_target,
-                            enum PSX_REG reg_op,
+                            enum PSX_REG reg_t,
+                            enum PSX_REG reg_s,
                             uint8_t shift) {
-   PPC_UNIMPLEMENTED();
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing sll r%d, r%d, %d\n", reg_t, reg_s, shift);
+#endif
+   BOILERPLATE_TARGET_SRC
+
+   EMIT(RLWINM(ppc_target, ppc_source, shift, 0, 31 - shift));
 }
 void dynasm_emit_sra(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_target,
-                            enum PSX_REG reg_op,
+                            enum PSX_REG reg_t,
+                            enum PSX_REG reg_s,
                             uint8_t shift) {
-   PPC_UNIMPLEMENTED();
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing sra r%d, r%d, %d\n", reg_t, reg_s, shift);
+#endif
+   BOILERPLATE_TARGET_SRC
+
+   EMIT(SRAWI(ppc_target, ppc_source, shift));
 }
 void dynasm_emit_addu(struct dynarec_compiler *compiler,
                              enum PSX_REG reg_target,
