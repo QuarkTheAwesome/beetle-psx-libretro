@@ -20,13 +20,16 @@
    (PPCG_OP(op) | (PPCG_REG(rD) << 21) | (PPCG_REG(rA) << 16) | PPCG_IMM(imm))
 #define PPCG_ADD(op, rD, rA, rB, oe, op2, rc) (uint32_t) \
    (PPCG_OP(op) | (PPCG_REG(rD) << 21) | (PPCG_REG(rA) << 16) \
-   | (PPCG_REG(rB) << 11) | (PPCG_BIT(oe) << 10) | (op2 << 1) | PPCG_BIT(rc))
+   | (PPCG_REG(rB) << 11) | (PPCG_BIT(oe) << 10) | ((op2) << 1) | PPCG_BIT(rc))
 #define PPCG_CMP(op, cr, rA, rB, op2) (uint32_t) \
    (PPCG_OP(op) | (PPCG_CR(cr) << 24) | (PPCG_REG(rA) << 16) \
-   | (PPCG_REG(rB) << 11) | (op2 << 1))
+   | (PPCG_REG(rB) << 11) | ((op2) << 1))
 #define PPCG_BC(op, bo, bi, bd, aa, lk) (uint32_t) \
-   (PPCG_OP(op) | (bo << 21) | (bi << 16) | (bd & ~3) | (PPCG_BIT(aa) << 1) \
-   | (PPCG_BIT(lk) << 1))
+   (PPCG_OP(op) | ((bo) << 21) | ((bi) << 16) | ((bd) & ~3) \
+   | (PPCG_BIT(aa) << 1) | (PPCG_BIT(lk) << 1))
+#define PPCG_ROT(op, rA, rS, sh, mb, me, rc) (uint32_t) \
+   (PPCG_OP(op) | (PPCG_REG(rA) << 16) | (PPCG_REG(rS) << 21) | ((sh) << 11) \
+   | ((mb) << 6) | ((me) << 1) | PPCG_BIT(rc))
 
 /* lwz rD, imm(rA) */
 #define LWZ(rD, imm, rA) (uint32_t) \
@@ -93,5 +96,13 @@
    this is the preferred method accoring to the UISA */
 #define MR(rA, rS) (uint32_t) \
    OR(rA, rS, rS)
+
+/* Base for rlwinm, rlwinm. */
+#define RLWINMx(rA, rS, sh, mb, me, rc) (uint32_t) \
+   PPCG_ROT(21, rA, rA, sh, mb, me, rc)
+
+/* rlwinm rA, rS, SH, MB, ME */
+#define RLWINM(rA, rS, sh, mb, me) (uint32_t) \
+   RLWINMx(rA, rS, sh, mb, me, 0)
 
 #endif
