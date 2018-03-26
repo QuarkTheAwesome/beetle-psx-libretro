@@ -320,16 +320,34 @@ void dynasm_emit_ori(struct dynarec_compiler *compiler,
    EMIT(ORI(ppc_target, ppc_source, val));
 }
 void dynasm_emit_andi(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_t,
-                             enum PSX_REG reg_s,
-                             uint32_t val) {
-   PPC_UNIMPLEMENTED();
+                      enum PSX_REG reg_t,
+                      enum PSX_REG reg_s,
+                      uint32_t val) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing andi %d, %d, %04X\n", reg_t, reg_s, val);
+#endif
+   BOILERPLATE_TARGET_SRC
+
+   EMIT(ANDI_(ppc_target, ppc_source, val));
 }
 void dynasm_emit_sltu(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_target,
-                             enum PSX_REG reg_op0,
-                             enum PSX_REG reg_op1) {
-   PPC_UNIMPLEMENTED();
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_op0,
+                      enum PSX_REG reg_op1) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing sltu %d, %d, %d\n", reg_target, reg_op0, reg_op1);
+#endif
+   BOILERPLATE_TARGET_2OP
+
+/* Here we go again...
+
+   see sltiu for an explanation. Only difference is the missing
+   sign-extension.
+*/
+   EMIT(LI(ppc_target, 1));
+   EMIT(CMPL(ppc_op0, ppc_op1));
+   EMIT(BLT(8));
+   EMIT(LI(ppc_target, 0));
 }
 void dynasm_emit_sw(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_addr,

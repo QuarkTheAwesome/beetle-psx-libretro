@@ -116,4 +116,9 @@
 #define SRAWI(rA, rS, SH) (uint32_t) \
    SRAWIx(rA, rS, SH, 0)
 
+/* andi. rA, rS, imm
+   For some reason, PowerPC doesn't have a non-. version of this? */
+#define ANDI_(rA, rS, imm) (uint32_t) \
+   PPCG_IMM16(28, rS, rA, imm)
+
 #endif
