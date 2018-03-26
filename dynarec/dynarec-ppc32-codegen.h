@@ -59,6 +59,9 @@
 #define ADDx(rD, rA, rB, oe, rc) (uint32_t) \
    PPCG_ADD(31, rD, rA, rB, oe, 266, rc)
 
+#define ADD(rD, rA, rB) (uint32_t) \
+   ADDx(rD, rA, rB, 0, 0)
+
 /* addo. rD, rA, rB */
 #define ADDO_(rD, rA, rB) (uint32_t) \
    ADDx(rD, rA, rB, 1, 1)

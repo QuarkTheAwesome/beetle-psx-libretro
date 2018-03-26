@@ -135,6 +135,18 @@ static void prepare_reg(struct dynarec_compiler* compiler,
    UPDATE_LAST_USE(compiler, ppc_target); \
    UPDATE_LAST_USE(compiler, ppc_source);
 
+#define BOILERPLATE_TARGET_2OP \
+   prepare_reg(compiler, reg_target); \
+   prepare_reg(compiler, reg_op0); \
+   prepare_reg(compiler, reg_op1); \
+   ppc_reg_t ppc_target = get_ppc_reg(reg_target); \
+   ppc_reg_t ppc_op0 = get_ppc_reg(reg_op0); \
+   ppc_reg_t ppc_op1 = get_ppc_reg(reg_op1); \
+   if (ppc_target < 0 || ppc_op0 < 0 || ppc_op1 < 0) return; \
+   UPDATE_LAST_USE(compiler, ppc_target); \
+   UPDATE_LAST_USE(compiler, ppc_op0); \
+   UPDATE_LAST_USE(compiler, ppc_op1);
+
 /*  TODO: ask what this is supposed to do */
 void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
                                 unsigned cycles) {
@@ -242,8 +254,8 @@ void dynasm_emit_li(struct dynarec_compiler *compiler,
    }
 }
 void dynasm_emit_mov(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_t,
-                            enum PSX_REG reg_s) {
+                     enum PSX_REG reg_t,
+                     enum PSX_REG reg_s) {
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing mov %d, %d\n", reg_t, reg_s);
 #endif
@@ -252,9 +264,9 @@ void dynasm_emit_mov(struct dynarec_compiler *compiler,
    EMIT(MR(ppc_target, ppc_source));
 }
 void dynasm_emit_sll(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_t,
-                            enum PSX_REG reg_s,
-                            uint8_t shift) {
+                     enum PSX_REG reg_t,
+                     enum PSX_REG reg_s,
+                     uint8_t shift) {
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing sll r%d, r%d, %d\n", reg_t, reg_s, shift);
 #endif
@@ -263,9 +275,9 @@ void dynasm_emit_sll(struct dynarec_compiler *compiler,
    EMIT(RLWINM(ppc_target, ppc_source, shift, 0, 31 - shift));
 }
 void dynasm_emit_sra(struct dynarec_compiler *compiler,
-                            enum PSX_REG reg_t,
-                            enum PSX_REG reg_s,
-                            uint8_t shift) {
+                     enum PSX_REG reg_t,
+                     enum PSX_REG reg_s,
+                     uint8_t shift) {
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing sra r%d, r%d, %d\n", reg_t, reg_s, shift);
 #endif
@@ -274,16 +286,26 @@ void dynasm_emit_sra(struct dynarec_compiler *compiler,
    EMIT(SRAWI(ppc_target, ppc_source, shift));
 }
 void dynasm_emit_addu(struct dynarec_compiler *compiler,
-                             enum PSX_REG reg_target,
-                             enum PSX_REG reg_op0,
-                             enum PSX_REG reg_op1) {
-   PPC_UNIMPLEMENTED();
+                      enum PSX_REG reg_target,
+                      enum PSX_REG reg_op0,
+                      enum PSX_REG reg_op1) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing addu %d, %d, %d\n", reg_target, reg_op0, reg_op1);
+#endif
+   BOILERPLATE_TARGET_2OP
+
+   EMIT(ADD(ppc_target, ppc_op0, ppc_op1));
 }
 void dynasm_emit_or(struct dynarec_compiler *compiler,
-                           enum PSX_REG reg_target,
-                           enum PSX_REG reg_op0,
-                           enum PSX_REG reg_op1) {
-   PPC_UNIMPLEMENTED();
+                    enum PSX_REG reg_target,
+                    enum PSX_REG reg_op0,
+                    enum PSX_REG reg_op1) {
+#if defined(PPC_DEBUG_INSTR)
+   printf("dyna: doing or %d, %d, %d\n", reg_target, reg_op0, reg_op1);
+#endif
+   BOILERPLATE_TARGET_2OP
+
+   EMIT(OR(ppc_target, ppc_op0, ppc_op1));
 }
 void dynasm_emit_ori(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
