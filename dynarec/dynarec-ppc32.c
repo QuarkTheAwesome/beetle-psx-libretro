@@ -36,9 +36,8 @@
 typedef int8_t ppc_reg_t;
 #define PPC_REG(reg) (ppc_reg_t)reg
 #define PPC_REG_INVALID PPC_REG(-1)
-#define PPC_REG_VALID(reg) ((reg != PPC_REG_INVALID)\
-                     && (reg >= PPC_REG_FIRST)\
-                     && (reg <= PPC_REG_LAST))
+#define PPC_REG_VALID(reg) ((reg != PPC_REG_INVALID) \
+                           && (reg < 32))
 
 /* REG  |volatile?|usage
    r0   |y | dynarec cycle count
@@ -46,74 +45,84 @@ typedef int8_t ppc_reg_t;
    r2   |y | dynarec_state
    r3   |y | Intermediary/Temp
    r4   |y | Intermediary/Temp
-   5-14 |y | PSX regs (dynamically allocated)
-   15-31|n | PSX regs (dynamically allocated)
+   5-7  |y | PSX regs (dynamically allocated)
+   8-14 |y | PSX regs (statically allocated)
+   15-31|n | PSX regs (statically allocated)
 */
-#define PPC_REG_FIRST PPC_REG(5)
-#define PPC_REG_LAST  PPC_REG(31)
+#define PPC_DYN_REG_FIRST PPC_REG(5)
+#define PPC_DYN_REG_LAST  PPC_REG(7)
 #define PPC_TMPREG_1 PPC_REG(3)
 #define PPC_TMPREG_2 PPC_REG(4)
 #define PPC_DYNASTATEREG PPC_REG(2)
 
-/* Mappings of psx regs to ppc regs.
-   Use PSX_REG to index. */
-ppc_reg_t ppc_reg_map[/*PSX_REG*/32] = { PPC_REG_INVALID };
-/* Last PC value where a given PowerPC reg was used.
-   Use ppc_reg_t to index.
-   TODO: come up with a better optimisation? this could fall over in loops. */
-uint32_t ppc_reg_lastuse[/*ppc_reg_t*/32] = { 0 };
-#define UPDATE_LAST_USE(compiler, reg) ppc_reg_lastuse[reg] = compiler->pc
+static ppc_reg_t reg_map[33] = {
+   /* PSX_REG_R0 */ PPC_REG(8),
+   /* PSX_REG_AT */ PPC_REG(9),
+   /* PSX_REG_V0 */ PPC_REG(10),
+   /* PSX_REG_V1 */ PPC_REG(11),
+   /* PSX_REG_A0 */ PPC_REG(12),
+   /* PSX_REG_A1 */ PPC_REG(13),
+   /* PSX_REG_A2 */ PPC_REG(14),
+   /* PSX_REG_A3 */ PPC_REG(15),
+   /* PSX_REG_T0 */ PPC_REG(16),
+   /* PSX_REG_T1 */ PPC_REG(17),
+   /* PSX_REG_T2 */ PPC_REG(18),
+   /* PSX_REG_T3 */ PPC_REG(19),
+   /* PSX_REG_T4 */ PPC_REG(20),
+   /* PSX_REG_T5 */ PPC_REG(21),
+   /* PSX_REG_T6 */ PPC_REG(22),
+   /* PSX_REG_T7 */ PPC_REG(23),
+   /* PSX_REG_S0 */ PPC_REG(30),
+   /* PSX_REG_S1 */ PPC_REG(31),
+   /* PSX_REG_S2 */ PPC_REG_INVALID,
+   /* PSX_REG_S3 */ PPC_REG_INVALID,
+   /* PSX_REG_S4 */ PPC_REG_INVALID,
+   /* PSX_REG_S5 */ PPC_REG_INVALID,
+   /* PSX_REG_S6 */ PPC_REG_INVALID,
+   /* PSX_REG_S7 */ PPC_REG_INVALID,
+   /* PSX_REG_T8 */ PPC_REG(24),
+   /* PSX_REG_T9 */ PPC_REG(25),
+   /* PSX_REG_K0 */ PPC_REG_INVALID,
+   /* PSX_REG_K1 */ PPC_REG_INVALID,
+   /* PSX_REG_GP */ PPC_REG_INVALID,
+   /* PSX_REG_SP */ PPC_REG(26),
+   /* PSX_REG_FP */ PPC_REG(27),
+   /* PSX_REG_RA */ PPC_REG(28),
+   /* PSX_REG_DT */ PPC_REG(29),
+};
+static bool dyn_reg_free[PPC_DYN_REG_LAST - PPC_DYN_REG_FIRST + 1] = { true };
 
-static ppc_reg_t get_ppc_reg(enum PSX_REG psxreg) {
-   if (psxreg < 32)
-      return ppc_reg_map[psxreg];
+static ppc_reg_t load_psx_reg(struct dynarec_compiler* compiler,
+                              enum PSX_REG psx_reg) {
+   if (psx_reg > 32) return PPC_REG_INVALID;
+   ppc_reg_t ppc_reg = reg_map[psx_reg];
+
+   if (PPC_REG_VALID(ppc_reg)) return ppc_reg;
+
+   for (ppc_reg = PPC_DYN_REG_FIRST; ppc_reg <= PPC_DYN_REG_LAST; ppc_reg++) {
+      if (dyn_reg_free[ppc_reg - PPC_DYN_REG_FIRST]) {
+         printf("dyna: assigned psx%d to ppc%d\n", psx_reg, ppc_reg);
+         dyn_reg_free[ppc_reg - PPC_DYN_REG_FIRST] = false;
+         EMIT(LWZ(ppc_reg, \
+            DYNAREC_STATE_REG_OFFSET(psx_reg), PPC_DYNASTATEREG));
+         return ppc_reg;
+      }
+   }
 
    return PPC_REG_INVALID;
 }
 
-static void prepare_reg(struct dynarec_compiler* compiler,
-                        enum PSX_REG psxreg) {
-   if (PPC_REG_VALID(ppc_reg_map[psxreg])) return;
+static void save_psx_reg(struct dynarec_compiler* compiler,
+                         enum PSX_REG psx_reg,
+                         ppc_reg_t ppc_reg) {
+   if (psx_reg > 32) return;
+   if (!PPC_REG_VALID(ppc_reg) || ppc_reg < PPC_DYN_REG_FIRST \
+      || ppc_reg > PPC_DYN_REG_LAST) return;
 
-/* We need to assign this PSX reg a PowerPC reg!
-   Try to find the PowerPC reg that has been left unused for the longest */
-   ppc_reg_t best_ppcreg = PPC_REG_FIRST;
-   uint32_t best_ppcreg_lastuse = ppc_reg_lastuse[best_ppcreg];
-
-   for (ppc_reg_t ppcreg = PPC_REG_FIRST; ppcreg <= PPC_REG_LAST; ppcreg++) {
-      if (ppc_reg_lastuse[ppcreg] < best_ppcreg_lastuse) {
-      /* We have a new best reg! */
-         best_ppcreg = ppcreg;
-         best_ppcreg_lastuse = ppc_reg_lastuse[best_ppcreg];
-      }
-   }
-
-/* Find out what PSX reg this corresponds to */
-   int old_psxreg = -1;
-   for (int i = 0; i < 32; i++) {
-      if (ppc_reg_map[i] == best_ppcreg) {
-         old_psxreg = i;
-         break;
-      }
-   }
-
-/* We've picked a register, woo!
-   First, save its old value to dynarec_state. */
-   if (old_psxreg >= 0) {
-      EMIT(STW(best_ppcreg, \
-         DYNAREC_STATE_REG_OFFSET(old_psxreg), PPC_DYNASTATEREG));
-   }
-
-/* Now, load in the new psxreg value. */
-   EMIT(LWZ(best_ppcreg, \
-      DYNAREC_STATE_REG_OFFSET(psxreg), PPC_DYNASTATEREG));
-
-/* Update tracking bits. */
-   ppc_reg_map[old_psxreg] = PPC_REG_INVALID;
-   ppc_reg_map[psxreg] = best_ppcreg;
-   UPDATE_LAST_USE(compiler, best_ppcreg);
-   printf("dyna: ppc-%d was psx-%d, is now psx-%d\n", \
-      best_ppcreg, old_psxreg, psxreg);
+   printf("dyna: saving psx%d from ppc%d\n", psx_reg, ppc_reg);
+   dyn_reg_free[ppc_reg - PPC_DYN_REG_FIRST] = true;
+   EMIT(STW(ppc_reg, \
+      DYNAREC_STATE_REG_OFFSET(psx_reg), PPC_DYNASTATEREG));
 }
 
 /****************** Codegen time! ******************/
@@ -126,26 +135,12 @@ static void prepare_reg(struct dynarec_compiler* compiler,
    printf("dyna: %s not implemented\n", __PRETTY_FUNCTION__); \
 }
 
-#define BOILERPLATE_TARGET_SRC \
-   prepare_reg(compiler, reg_t); \
-   prepare_reg(compiler, reg_s); \
-   ppc_reg_t ppc_target = get_ppc_reg(reg_t); \
-   ppc_reg_t ppc_source = get_ppc_reg(reg_s); \
-   if (ppc_target < 0 || ppc_source < 0) return; \
-   UPDATE_LAST_USE(compiler, ppc_target); \
-   UPDATE_LAST_USE(compiler, ppc_source);
+#define GET_REG(psx_reg, ppc_reg) \
+   ppc_reg_t ppc_reg = load_psx_reg(compiler, psx_reg); \
+   if (ppc_reg < 0) return
 
-#define BOILERPLATE_TARGET_2OP \
-   prepare_reg(compiler, reg_target); \
-   prepare_reg(compiler, reg_op0); \
-   prepare_reg(compiler, reg_op1); \
-   ppc_reg_t ppc_target = get_ppc_reg(reg_target); \
-   ppc_reg_t ppc_op0 = get_ppc_reg(reg_op0); \
-   ppc_reg_t ppc_op1 = get_ppc_reg(reg_op1); \
-   if (ppc_target < 0 || ppc_op0 < 0 || ppc_op1 < 0) return; \
-   UPDATE_LAST_USE(compiler, ppc_target); \
-   UPDATE_LAST_USE(compiler, ppc_op0); \
-   UPDATE_LAST_USE(compiler, ppc_op1);
+#define SAVE_REG(psx_reg, ppc_reg) \
+   save_psx_reg(compiler, psx_reg, ppc_reg)
 
 /*  TODO: ask what this is supposed to do */
 void dynasm_counter_maintenance(struct dynarec_compiler *compiler,
@@ -178,7 +173,8 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing addi %d, %d, %04X\n", reg_t, reg_s, val);
 #endif
-   BOILERPLATE_TARGET_SRC
+   GET_REG(reg_t, ppc_target);
+   GET_REG(reg_s, ppc_source);
 
 /* PowerPC doesn't have an immediate add with overflow.
 
@@ -189,6 +185,9 @@ void dynasm_emit_addi(struct dynarec_compiler *compiler,
    EMIT(LI(PPC_TMPREG_1, val));
    EMIT(ADDO_(ppc_target, ppc_source, PPC_TMPREG_1));
    PPC_OVERFLOW_CHECK();
+
+   SAVE_REG(reg_t, ppc_target);
+   SAVE_REG(reg_s, ppc_source);
 }
 
 void dynasm_emit_addiu(struct dynarec_compiler *compiler,
@@ -198,10 +197,14 @@ void dynasm_emit_addiu(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing addiu %d, %d, %04X\n", reg_t, reg_s, val);
 #endif
-   BOILERPLATE_TARGET_SRC
+   GET_REG(reg_t, ppc_target);
+   GET_REG(reg_s, ppc_source);
 
 /* MIPS' addiu matches perfectly with PowerPC's addi! Woo! */
    EMIT(ADDI(ppc_target, ppc_source, val));
+
+   SAVE_REG(reg_t, ppc_target);
+   SAVE_REG(reg_s, ppc_source);
 }
 
 void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
@@ -211,7 +214,8 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing sltiu %d, %d, %04X\n", reg_t, reg_s, val);
 #endif
-   BOILERPLATE_TARGET_SRC
+   GET_REG(reg_t, ppc_target);
+   GET_REG(reg_s, ppc_source);
 
 /* This one is annoying because of its boolean result...
 
@@ -226,6 +230,9 @@ void dynasm_emit_sltiu(struct dynarec_compiler *compiler,
    EMIT(CMPL(ppc_source, PPC_TMPREG_1));
    EMIT(BLT(8));
    EMIT(LI(ppc_target, 0));
+
+   SAVE_REG(reg_t, ppc_target);
+   SAVE_REG(reg_s, ppc_source);
 }
 void dynasm_emit_li(struct dynarec_compiler *compiler,
                     enum PSX_REG reg,
@@ -233,10 +240,7 @@ void dynasm_emit_li(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing li %d, %04X\n", reg, val);
 #endif
-   prepare_reg(compiler, reg);
-   ppc_reg_t ppc_target = get_ppc_reg(reg);
-   if (ppc_target < 0) return;
-   UPDATE_LAST_USE(compiler, ppc_target);
+   GET_REG(reg, ppc_target);
 
 /* TODO: this looks like a pseudo-instruction.
    Ask if it should be sign-extended.
@@ -252,6 +256,8 @@ void dynasm_emit_li(struct dynarec_compiler *compiler,
    } else { //val & 0xFFFF == 0
       EMIT(LIS(ppc_target, val >> 16));
    }
+
+   SAVE_REG(reg, ppc_target);
 }
 void dynasm_emit_mov(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
@@ -259,9 +265,13 @@ void dynasm_emit_mov(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing mov %d, %d\n", reg_t, reg_s);
 #endif
-   BOILERPLATE_TARGET_SRC
+   GET_REG(reg_t, ppc_target);
+   GET_REG(reg_s, ppc_source);
 
    EMIT(MR(ppc_target, ppc_source));
+
+   SAVE_REG(reg_t, ppc_target);
+   SAVE_REG(reg_s, ppc_source);
 }
 void dynasm_emit_sll(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
@@ -270,9 +280,13 @@ void dynasm_emit_sll(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing sll r%d, r%d, %d\n", reg_t, reg_s, shift);
 #endif
-   BOILERPLATE_TARGET_SRC
+   GET_REG(reg_t, ppc_target);
+   GET_REG(reg_s, ppc_source);
 
    EMIT(RLWINM(ppc_target, ppc_source, shift, 0, 31 - shift));
+
+   SAVE_REG(reg_t, ppc_target);
+   SAVE_REG(reg_s, ppc_source);
 }
 void dynasm_emit_sra(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
@@ -281,9 +295,13 @@ void dynasm_emit_sra(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing sra r%d, r%d, %d\n", reg_t, reg_s, shift);
 #endif
-   BOILERPLATE_TARGET_SRC
+   GET_REG(reg_t, ppc_target);
+   GET_REG(reg_s, ppc_source);
 
    EMIT(SRAWI(ppc_target, ppc_source, shift));
+
+   SAVE_REG(reg_t, ppc_target);
+   SAVE_REG(reg_s, ppc_source);
 }
 void dynasm_emit_addu(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
@@ -292,9 +310,15 @@ void dynasm_emit_addu(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing addu %d, %d, %d\n", reg_target, reg_op0, reg_op1);
 #endif
-   BOILERPLATE_TARGET_2OP
+   GET_REG(reg_target, ppc_target);
+   GET_REG(reg_op0, ppc_op0);
+   GET_REG(reg_op1, ppc_op1);
 
    EMIT(ADD(ppc_target, ppc_op0, ppc_op1));
+
+   SAVE_REG(reg_target, ppc_target);
+   SAVE_REG(reg_op0, ppc_op0);
+   SAVE_REG(reg_op1, ppc_op1);
 }
 void dynasm_emit_or(struct dynarec_compiler *compiler,
                     enum PSX_REG reg_target,
@@ -303,9 +327,15 @@ void dynasm_emit_or(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing or %d, %d, %d\n", reg_target, reg_op0, reg_op1);
 #endif
-   BOILERPLATE_TARGET_2OP
+   GET_REG(reg_target, ppc_target);
+   GET_REG(reg_op0, ppc_op0);
+   GET_REG(reg_op1, ppc_op1);
 
    EMIT(OR(ppc_target, ppc_op0, ppc_op1));
+
+   SAVE_REG(reg_target, ppc_target);
+   SAVE_REG(reg_op0, ppc_op0);
+   SAVE_REG(reg_op1, ppc_op1);
 }
 void dynasm_emit_ori(struct dynarec_compiler *compiler,
                      enum PSX_REG reg_t,
@@ -314,10 +344,14 @@ void dynasm_emit_ori(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing ori %d, %d, %04X\n", reg_t, reg_s, val);
 #endif
-   BOILERPLATE_TARGET_SRC
+   GET_REG(reg_t, ppc_target);
+   GET_REG(reg_s, ppc_source);
 
 /* Perfect match! */
    EMIT(ORI(ppc_target, ppc_source, val));
+
+   SAVE_REG(reg_t, ppc_target);
+   SAVE_REG(reg_s, ppc_source);
 }
 void dynasm_emit_andi(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_t,
@@ -326,9 +360,13 @@ void dynasm_emit_andi(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing andi %d, %d, %04X\n", reg_t, reg_s, val);
 #endif
-   BOILERPLATE_TARGET_SRC
+   GET_REG(reg_t, ppc_target);
+   GET_REG(reg_s, ppc_source);
 
    EMIT(ANDI_(ppc_target, ppc_source, val));
+
+   SAVE_REG(reg_t, ppc_target);
+   SAVE_REG(reg_s, ppc_source);
 }
 void dynasm_emit_sltu(struct dynarec_compiler *compiler,
                       enum PSX_REG reg_target,
@@ -337,7 +375,9 @@ void dynasm_emit_sltu(struct dynarec_compiler *compiler,
 #if defined(PPC_DEBUG_INSTR)
    printf("dyna: doing sltu %d, %d, %d\n", reg_target, reg_op0, reg_op1);
 #endif
-   BOILERPLATE_TARGET_2OP
+   GET_REG(reg_target, ppc_target);
+   GET_REG(reg_op0, ppc_op0);
+   GET_REG(reg_op1, ppc_op1);
 
 /* Here we go again...
 
@@ -348,6 +388,10 @@ void dynasm_emit_sltu(struct dynarec_compiler *compiler,
    EMIT(CMPL(ppc_op0, ppc_op1));
    EMIT(BLT(8));
    EMIT(LI(ppc_target, 0));
+
+   SAVE_REG(reg_target, ppc_target);
+   SAVE_REG(reg_op0, ppc_op0);
+   SAVE_REG(reg_op1, ppc_op1);
 }
 void dynasm_emit_sw(struct dynarec_compiler *compiler,
                            enum PSX_REG reg_addr,
