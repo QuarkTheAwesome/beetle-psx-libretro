@@ -20,15 +20,19 @@
 #define PPC_DEBUG_INSTR 1
 
 #ifdef MSB_FIRST
+#define EMIT_AT(ptr, instr) \
+   *ptr = instr;
 #define EMIT(instr) { \
    uint32_t* map = (uint32_t*)(compiler->map); \
-   *map++ = instr; \
+   EMIT_AT(map++, instr); \
    compiler->map = (uint8_t*)map; \
 }
 #else //!MSB_FIRST
+#define EMIT_AT(ptr, instr) \
+   *ptr = instr;
 #define EMIT(instr) { \
    uint32_t* map = (uint32_t*)(compiler->map); \
-   *map++ = __builtin_bswap32(instr); \
+   EMIT_AT(map++, __builtin_bswap32(instr)); \
    compiler->map = (uint8_t*)map; \
 }
 #endif
